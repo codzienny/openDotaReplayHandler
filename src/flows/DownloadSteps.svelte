@@ -6,14 +6,24 @@
     let steps = $derived(() => 
         [
             { text: "Enter your match id" },
+
             $replayUrl == null
             ? null
-            : { text: "Let it process and download" }
+            : { text: "Let it process and download" },
+
+            $startedDownload == null
+            ? null
+            :{ text: "Paste it to your Dota 2 replay directory, e.g.: \`C:\\Program Files (x86)\\Steam\\steamapps\\common\\dota 2 beta\\game\\dota\\replays\\`" },
+
+            $startedDownload == null
+            ? null
+            : { text: "Run game and find your replay in \`watch\` > \`replays\' > \`saved to watch later`\ > \`downloads\`" },
         ].filter(step => step != null)
     );
 
     let matchId: Writable<Number> = writable();
     let replayUrl: Writable<URL | null> = writable(null);
+    let startedDownload = writable<false>();
 
     function getStepComponent(index: number) {
         return [
@@ -47,6 +57,7 @@
                     <Component
                         {matchId}
                         {replayUrl}
+                        {startedDownload}
                     />
                 {/if}
             {/await}

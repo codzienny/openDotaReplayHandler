@@ -2,11 +2,13 @@
     import { writable } from 'svelte/store';
     import { decompress } from '../bz2';
 
-    const { 
+    const {
+        matchId = writable<Number>(),
         replayUrl = writable<URL | null>(),
+        startedDownload = writable<boolean>(),
     } = $props();
 
-    const fileName = 'replay.dem.bz2';
+    const fileNameExtension = '.dem';
     const downloadSteps = [
         "Downloading replay...",
         "Processing replay..."
@@ -19,6 +21,7 @@
 
     async function startDownloadProcess() {
         isBusy = true;
+        $startedDownload = true;
         await downloadFile();
     }
 
@@ -59,6 +62,7 @@
                 progress = receivedLength / contentLength;
             }
 
+            currentStep = 1;
             const downloadedFile = await new Blob(chunks).arrayBuffer();
             const compressedData = new Uint8Array(downloadedFile);
             const decompressedData = decompress(compressedData);
@@ -66,7 +70,7 @@
 
             const link = document.createElement('a');
             link.href = URL.createObjectURL(decompressedBlob);
-            link.download = fileName;
+            link.download = $matchId + fileNameExtension;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
