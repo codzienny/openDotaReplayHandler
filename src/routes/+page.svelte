@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import DownloadSteps from "../flows/DownloadSteps.svelte";
 </script>
 

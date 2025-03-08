@@ -1,6 +1,7 @@
 <script lang="ts">
     import { writable } from 'svelte/store';
-    import { decompress } from '../bz2';
+    import { decompress } from '../decompression/bz2';
+    import { asyncDecompress } from '../decompression/asyncDecompress';
 
     const {
         matchId = writable<Number>(),
@@ -65,8 +66,11 @@
             currentStep = 1;
             const downloadedFile = await new Blob(chunks).arrayBuffer();
             const compressedData = new Uint8Array(downloadedFile);
-            const decompressedData = decompress(compressedData);
-            const decompressedBlob = new Blob([decompressedData], { type: 'application/octet-stream' });
+            const decompressedData = await asyncDecompress(compressedData)
+            const decompressedBlob = new Blob(
+                [decompressedData],
+                { type: 'application/octet-stream' }
+            );
 
             const link = document.createElement('a');
             link.href = URL.createObjectURL(decompressedBlob);
@@ -75,7 +79,6 @@
             link.click();
             document.body.removeChild(link);
         } catch (error) {
-            console.log("Some error" + error);
             cleanDownloadState();
         }
     }
