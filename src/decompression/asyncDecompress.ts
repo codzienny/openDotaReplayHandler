@@ -1,14 +1,23 @@
 import DecompressWorker from './asyncDecompressWorker?worker';
 
 function asyncDecompress(
-    bytes: Uint8Array
+    bytes: Uint8Array,
+    progressUpdate: (percent: number) => void
 ):  Promise<Uint8Array> {
     const worker = new DecompressWorker();
 
     return new Promise((resolve, reject) => {
         worker.onmessage = (event) => {
-            resolve(event.data);
-            worker.terminate();
+            switch (event.data.type) {
+                case 'progress':
+                    progressUpdate(event.data.progress);
+                    break;
+                case 'result':
+                    progressUpdate(1.0);
+                    resolve(event.data.result);
+                    worker.terminate();
+                    break;
+            }
         };
     
         worker.onerror = (e) => {

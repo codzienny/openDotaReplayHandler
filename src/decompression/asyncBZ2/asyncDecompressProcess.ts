@@ -1,5 +1,8 @@
 // @ts-nocheck
 
+import { bwtReverse } from "./bwtReverse/asyncBwtReverse";
+import { createOrderedHuffmanTable } from "./huffmanTable/asyncCreateOrderedHuffmanTable";
+
 const masks = [
     0x00000000, 0x00000001, 0x00000003, 0x00000007,
     0x0000000f, 0x0000001f, 0x0000003f, 0x0000007f,
@@ -11,82 +14,12 @@ const masks = [
     0x0fffffff, 0x1fffffff, 0x3fffffff, -0x80000000,
 ];
 
-function createOrderedHuffmanTable(lengths) {
-    const z = [];
-    for (let i = 0; i < lengths.length; i += 1) {
-        z.push([i, lengths[i]]);
-    }
-    z.push([lengths.length, -1]);
-    const table = [];
-    let start = z[0][0];
-    let bits = z[0][1];
-    for (let i = 0; i < z.length; i += 1) {
-        const finish = z[i][0];
-        const endbits = z[i][1];
-        if (bits) {
-            for (let code = start; code < finish; code += 1) {
-                table.push({ code, bits, symbol: undefined });
-            }
-        }
-        start = finish;
-        bits = endbits;
-        if (endbits === -1) {
-            break;
-        }
-    }
-    table.sort((a, b) => ((a.bits - b.bits) || (a.code - b.code)));
-    let tempBits = 0;
-    let symbol = -1;
-    const fastAccess = [];
-    let current;
-    for (let i = 0; i < table.length; i += 1) {
-        const t = table[i];
-        symbol += 1;
-        if (t.bits !== tempBits) {
-            symbol <<= t.bits - tempBits;
-            tempBits = t.bits;
-            current = fastAccess[tempBits] = {};
-        }
-        t.symbol = symbol;
-        current[symbol] = t;
-    }
-    return {
-        table,
-        fastAccess,
-    };
-}
+function decompress(
+    bytes,
+    progressUpdate: (percent: number) => void
+) {
+    const totalPerf = performance.now();
 
-function bwtReverse(src, primary) {
-    if (primary < 0 || primary >= src.length) {
-        throw RangeError('Out of bound');
-    }
-    const unsorted = src.slice();
-    src.sort((a, b) => a - b);
-    const start = {};
-    for (let i = src.length - 1; i >= 0; i -= 1) {
-        start[src[i]] = i;
-    }
-    const links = [];
-    for (let i = 0; i < src.length; i += 1) {
-        links.push(start[unsorted[i]]++); // eslint-disable-line no-plusplus
-    }
-    let i;
-    const first = src[i = primary];
-    const ret = [];
-    for (let j = 1; j < src.length; j += 1) {
-        const x = src[i = links[i]];
-        if (x === undefined) {
-            ret.push(255);
-        } else {
-            ret.push(x);
-        }
-    }
-    ret.push(first);
-    ret.reverse();
-    return ret;
-}
-
-function decompress(bytes) {
     let index = 0;
     let bitfield = 0;
     let bits = 0;
@@ -128,6 +61,9 @@ function decompress(bytes) {
     while (true) {
         const blocktype = read(48);
         const crc = read(32) | 0;
+
+        progressUpdate(index / bytes.length);
+
         if (blocktype === 0x314159265359) {
             if (read(1)) {
                 throw new Error('do not support randomised');
@@ -198,6 +134,8 @@ function decompress(bytes) {
             let repeat = 0;
             let repeatPower = 0;
             const buffer = [];
+
+            // const startDecoding = performance.now();
             while (true) {
                 decoded -= 1;
                 if (decoded <= 0) {
@@ -248,6 +186,10 @@ function decompress(bytes) {
                     buffer.push(v);
                 }
             }
+
+            // const endDecoding = performance.now();
+            // console.log('Decoding done in', endDecoding - startDecoding, 'ms');
+
             const nt = bwtReverse(buffer, pointer);
             let i = 0;
             while (i < nt.length) {
@@ -279,8 +221,11 @@ function decompress(bytes) {
             throw new Error('Invalid bz2 blocktype');
         }
     }
+
+    const endTotal = performance.now();
+    console.log('Total decompression done in', endTotal - totalPerf, 'ms');
+
     return out.subarray(0, outIndex);
 }
 
-const exports = { decompress };
 export { decompress };
